@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daycare Waitlist Management</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Landing Page -->
+    <div id="landingPage" class="page active">
+        <div class="container">
+            <header>
+                <h1>Daycare Waitlist Management</h1>
+                <p class="subtitle">Connecting families with quality daycare services</p>
+            </header>
+            <main>
+                <section class="card">
+                    <h2>Welcome</h2>
+                    <p>Choose your account type to get started:</p>
+                    <div class="button-group">
+                        <button id="clientLoginBtn" class="btn btn-primary">I'm a Client</button>
+                        <button id="daycareLoginBtn" class="btn btn-secondary">I'm a Daycare</button>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Client Login/Register -->
+    <div id="clientAuthPage" class="page">
+        <div class="container">
+            <header>
+                <h1>Client Portal</h1>
+                <p class="subtitle">Join the waitlist for your child</p>
+            </header>
+            <main>
+                <div class="auth-tabs">
+                    <button class="tab-btn active" data-tab="login">Login</button>
+                    <button class="tab-btn" data-tab="register">Register</button>
+                </div>
+
+                <!-- Login Form -->
+                <section id="clientLoginForm" class="card auth-form active">
+                    <h2>Client Login</h2>
+                    <form id="clientLoginFormElement">
+                        <div class="form-group">
+                            <label for="clientEmail">Email</label>
+                            <input type="email" id="clientEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="clientPassword">Password</label>
+                            <input type="password" id="clientPassword" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </form>
+                    <button class="btn btn-secondary" onclick="showPage('landingPage')">Back</button>
+                </section>
+
+                <!-- Register Form -->
+                <section id="clientRegisterForm" class="card auth-form">
+                    <h2>Client Registration</h2>
+                    <form id="clientRegisterFormElement">
+                        <div class="form-group">
+                            <label for="clientRegEmail">Email</label>
+                            <input type="email" id="clientRegEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="clientRegPassword">Password</label>
+                            <input type="password" id="clientRegPassword" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="clientName">Your Name</label>
+                            <input type="text" id="clientName" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Register</button>
+                    </form>
+                    <button class="btn btn-secondary" onclick="showPage('landingPage')">Back</button>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Daycare Login/Register -->
+    <div id="daycareAuthPage" class="page">
+        <div class="container">
+            <header>
+                <h1>Daycare Portal</h1>
+                <p class="subtitle">Manage your daycare waitlist</p>
+            </header>
+            <main>
+                <div class="auth-tabs">
+                    <button class="tab-btn active" data-tab="login">Login</button>
+                    <button class="tab-btn" data-tab="register">Register</button>
+                </div>
+
+                <!-- Login Form -->
+                <section id="daycareLoginForm" class="card auth-form active">
+                    <h2>Daycare Login</h2>
+                    <form id="daycareLoginFormElement">
+                        <div class="form-group">
+                            <label for="daycareEmail">Email</label>
+                            <input type="email" id="daycareEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="daycarePassword">Password</label>
+                            <input type="password" id="daycarePassword" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </form>
+                    <button class="btn btn-secondary" onclick="showPage('landingPage')">Back</button>
+                </section>
+
+                <!-- Register Form -->
+                <section id="daycareRegisterForm" class="card auth-form">
+                    <h2>Daycare Registration</h2>
+                    <form id="daycareRegisterFormElement">
+                        <div class="form-group">
+                            <label for="daycareRegEmail">Email</label>
+                            <input type="email" id="daycareRegEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="daycareRegPassword">Password</label>
+                            <input type="password" id="daycareRegPassword" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="daycareName">Daycare Name</label>
+                            <input type="text" id="daycareName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="daycareLocation">Location (Address)</label>
+                            <input type="text" id="daycareLocation" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Register</button>
+                    </form>
+                    <button class="btn btn-secondary" onclick="showPage('landingPage')">Back</button>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Client Dashboard -->
+    <div id="clientDashboard" class="page">
+        <div class="container">
+            <header>
+                <h1>Client Dashboard</h1>
+                <p class="subtitle" id="clientWelcome">Welcome!</p>
+            </header>
+            <main>
+                <!-- Add Child to Waitlist -->
+                <section class="card">
+                    <h2>Add Child to Waitlist</h2>
+                    <form id="addChildForm">
+                        <div class="form-group">
+                            <label for="childName">Child's Name</label>
+                            <input type="text" id="childName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="childAge">Child's Age</label>
+                            <input type="number" id="childAge" min="0" max="18" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="childLocation">Your Location (Address)</label>
+                            <input type="text" id="childLocation" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add to Waitlist</button>
+                    </form>
+                </section>
+
+                <!-- My Children on Waitlist -->
+                <section class="card">
+                    <h2>My Children on Waitlist</h2>
+                    <div id="childrenList"></div>
+                </section>
+
+                <!-- Pending Offers -->
+                <section class="card">
+                    <h2>Pending Placement Offers</h2>
+                    <div id="pendingOffers"></div>
+                </section>
+
+                <button class="btn btn-secondary" onclick="logout()">Logout</button>
+            </main>
+        </div>
+    </div>
+
+    <!-- Daycare Dashboard -->
+    <div id="daycareDashboard" class="page">
+        <div class="container">
+            <header>
+                <h1>Daycare Dashboard</h1>
+                <p class="subtitle" id="daycareWelcome">Welcome!</p>
+            </header>
+            <main>
+                <!-- Add Placements -->
+                <section class="card">
+                    <h2>Add Available Placements</h2>
+                    <form id="addPlacementForm">
+                        <div class="form-group">
+                            <label for="placementMinAge">Minimum Age</label>
+                            <input type="number" id="placementMinAge" min="0" max="18" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="placementMaxAge">Maximum Age</label>
+                            <input type="number" id="placementMaxAge" min="0" max="18" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="placementCount">Number of Placements</label>
+                            <input type="number" id="placementCount" min="1" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Placements</button>
+                    </form>
+                </section>
+
+                <!-- Current Placements -->
+                <section class="card">
+                    <h2>Current Available Placements</h2>
+                    <div id="placementsList"></div>
+                </section>
+
+                <!-- Waitlist Candidates -->
+                <section class="card">
+                    <h2>Waitlist Candidates</h2>
+                    <div id="waitlistCandidates"></div>
+                </section>
+
+                <button class="btn btn-secondary" onclick="logout()">Logout</button>
+            </main>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

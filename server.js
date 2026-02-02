@@ -6,7 +6,8 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0'; // Listen on all network interfaces
 const DATA_FILE = path.join(__dirname, 'data.json');
 
 // Middleware
@@ -421,12 +422,36 @@ app.patch('/api/offers/:id', async (req, res) => {
     }
 });
 
+// Get local IP address
+function getLocalIP() {
+    const os = require('os');
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            // Skip internal (loopback) and non-IPv4 addresses
+            if (iface.family === 'IPv4' && !iface.internal) {
+                return iface.address;
+            }
+        }
+    }
+    return 'localhost';
+}
+
 // Start server
 async function startServer() {
     await initDataFile();
-    app.listen(PORT, () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-        console.log(`API available at http://localhost:${PORT}/api`);
+    const localIP = getLocalIP();
+    app.listen(PORT, HOST, () => {
+        console.log('='.repeat(60));
+        console.log(`Server is running!`);
+        console.log('='.repeat(60));
+        console.log(`Local access:    http://localhost:${PORT}`);
+        console.log(`Network access:  http://${localIP}:${PORT}`);
+        console.log(`API endpoint:    http://${localIP}:${PORT}/api`);
+        console.log('='.repeat(60));
+        console.log(`\nTo access from other devices on your network:`);
+        console.log(`Use: http://${localIP}:${PORT}`);
+        console.log(`\nMake sure your firewall allows connections on port ${PORT}`);
     });
 }
 

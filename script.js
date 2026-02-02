@@ -1,5 +1,17 @@
-// API Configuration
-const API_BASE_URL = 'http://localhost:3000/api';
+// API Configuration - Auto-detect server URL
+// Works for localhost, network access, and cloud hosting
+const getApiBaseUrl = () => {
+    // For cloud hosting (no port in URL), use relative path
+    if (window.location.hostname !== 'localhost' && 
+        window.location.hostname !== '127.0.0.1' &&
+        !window.location.port) {
+        return '/api'; // Relative URL for cloud
+    }
+    // For local development with port
+    return `${window.location.protocol}//${window.location.hostname}:${window.location.port || 3000}/api`;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // API Helper Function
 async function apiCall(endpoint, options = {}) {

@@ -286,6 +286,30 @@ async function loadClientDashboard() {
                 </div>
             `).join('');
         }
+        
+        // Load accepted placements (current placements)
+        const acceptedOffers = offers.filter(o => {
+            // Check if the child belongs to this client
+            const child = client.children.find(c => c.id === o.childId);
+            return child && o.status === 'accepted';
+        });
+        
+        const currentPlacements = document.getElementById('currentPlacements');
+        if (acceptedOffers.length === 0) {
+            currentPlacements.innerHTML = '<p class="empty-state">No active placements at this time.</p>';
+        } else {
+            currentPlacements.innerHTML = acceptedOffers.map(offer => {
+                const placementDate = offer.dateResponded ? new Date(offer.dateResponded).toLocaleDateString() : 'N/A';
+                return `
+                    <div class="placement-item">
+                        <h3>${offer.childName}</h3>
+                        <p><strong>Daycare:</strong> ${offer.daycareName}</p>
+                        <p><strong>Location:</strong> ${offer.daycareLocation}</p>
+                        <p><strong>Placement Date:</strong> ${placementDate}</p>
+                    </div>
+                `;
+            }).join('');
+        }
     } catch (error) {
         showError('Error loading dashboard: ' + error.message);
     }

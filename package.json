@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "migrate": "node migrate-data.js",
+    "query": "node query-db.js"
   },
   "keywords": ["daycare", "waitlist", "management"],
   "author": "",
@@ -14,6 +16,7 @@
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "bcryptjs": "^2.4.3",
-    "body-parser": "^1.20.2"
+    "body-parser": "^1.20.2",
+    "sqlite3": "^5.1.6"
   }
 }

@@ -1,58 +1,17 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const fs = require('fs').promises;
-const path = require('path');
 const bcrypt = require('bcryptjs');
+const { db, initDatabase } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || '0.0.0.0'; // Listen on all network interfaces
-const DATA_FILE = path.join(__dirname, 'data.json');
+const HOST = process.env.HOST || '0.0.0.0';
 
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(__dirname)); // Serve static files (HTML, CSS, JS)
-
-// Initialize data file
-async function initDataFile() {
-    try {
-        await fs.access(DATA_FILE);
-    } catch {
-        // File doesn't exist, create it with default structure
-        const defaultData = {
-            clients: [],
-            daycares: [],
-            waitlist: [],
-            placements: [],
-            offers: []
-        };
-        await fs.writeFile(DATA_FILE, JSON.stringify(defaultData, null, 2));
-    }
-}
-
-// Read data from file
-async function readData() {
-    try {
-        const data = await fs.readFile(DATA_FILE, 'utf8');
-        return JSON.parse(data);
-    } catch (error) {
-        console.error('Error reading data:', error);
-        return { clients: [], daycares: [], waitlist: [], placements: [], offers: [] };
-    }
-}
-
-// Write data to file
-async function writeData(data) {
-    try {
-        await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
-        return true;
-    } catch (error) {
-        console.error('Error writing data:', error);
-        return false;
-    }
-}
 
 // ==================== CLIENT ROUTES ====================
 
@@ -60,26 +19,24 @@ async function writeData(data) {
 app.post('/api/clients/register', async (req, res) => {
     try {
         const { email, password, name } = req.body;
-        const data = await readData();
         
-        if (data.clients.find(c => c.email === email)) {
+        // Check if email already exists
+        const existing = await db.get('SELECT id FROM clients WHERE email = ?', [email]);
+        if (existing) {
             return res.status(400).json({ error: 'Email already registered' });
         }
         
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newClient = {
-            id: Date.now().toString(),
-            email,
-            password: hashedPassword,
-            name,
-            children: []
-        };
+        const id = Date.now().toString();
         
-        data.clients.push(newClient);
-        await writeData(data);
+        await db.run(
+            'INSERT INTO clients (id, email, password, name) VALUES (?, ?, ?, ?)',
+            [id, email, hashedPassword, name]
+        );
         
         res.json({ success: true, message: 'Registration successful' });
     } catch (error) {
+        console.error('Registration error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -88,9 +45,8 @@ app.post('/api/clients/register', async (req, res) => {
 app.post('/api/clients/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        const data = await readData();
         
-        const client = data.clients.find(c => c.email === email);
+        const client = await db.get('SELECT * FROM clients WHERE email = ?', [email]);
         if (!client) {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
@@ -110,6 +66,7 @@ app.post('/api/clients/login', async (req, res) => {
             }
         });
     } catch (error) {
+        console.error('Login error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -117,17 +74,21 @@ app.post('/api/clients/login', async (req, res) => {
 // Get client data
 app.get('/api/clients/:id', async (req, res) => {
     try {
-        const data = await readData();
-        const client = data.clients.find(c => c.id === req.params.id);
+        const client = await db.get('SELECT id, email, name, created_at FROM clients WHERE id = ?', [req.params.id]);
         
         if (!client) {
             return res.status(404).json({ error: 'Client not found' });
         }
         
-        // Don't send password
-        const { password, ...clientData } = client;
-        res.json(clientData);
+        // Get children
+        const children = await db.query('SELECT * FROM children WHERE client_id = ?', [req.params.id]);
+        
+        res.json({
+            ...client,
+            children: children
+        });
     } catch (error) {
+        console.error('Get client error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -138,27 +99,24 @@ app.get('/api/clients/:id', async (req, res) => {
 app.post('/api/daycares/register', async (req, res) => {
     try {
         const { email, password, name, location } = req.body;
-        const data = await readData();
         
-        if (data.daycares.find(d => d.email === email)) {
+        // Check if email already exists
+        const existing = await db.get('SELECT id FROM daycares WHERE email = ?', [email]);
+        if (existing) {
             return res.status(400).json({ error: 'Email already registered' });
         }
         
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newDaycare = {
-            id: Date.now().toString(),
-            email,
-            password: hashedPassword,
-            name,
-            location,
-            placements: []
-        };
+        const id = Date.now().toString();
         
-        data.daycares.push(newDaycare);
-        await writeData(data);
+        await db.run(
+            'INSERT INTO daycares (id, email, password, name, location) VALUES (?, ?, ?, ?, ?)',
+            [id, email, hashedPassword, name, location]
+        );
         
         res.json({ success: true, message: 'Registration successful' });
     } catch (error) {
+        console.error('Registration error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -167,9 +125,8 @@ app.post('/api/daycares/register', async (req, res) => {
 app.post('/api/daycares/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        const data = await readData();
         
-        const daycare = data.daycares.find(d => d.email === email);
+        const daycare = await db.get('SELECT * FROM daycares WHERE email = ?', [email]);
         if (!daycare) {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
@@ -189,6 +146,7 @@ app.post('/api/daycares/login', async (req, res) => {
             }
         });
     } catch (error) {
+        console.error('Login error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -196,17 +154,21 @@ app.post('/api/daycares/login', async (req, res) => {
 // Get daycare data
 app.get('/api/daycares/:id', async (req, res) => {
     try {
-        const data = await readData();
-        const daycare = data.daycares.find(d => d.id === req.params.id);
+        const daycare = await db.get('SELECT id, email, name, location, created_at FROM daycares WHERE id = ?', [req.params.id]);
         
         if (!daycare) {
             return res.status(404).json({ error: 'Daycare not found' });
         }
         
-        // Don't send password
-        const { password, ...daycareData } = daycare;
-        res.json(daycareData);
+        // Get placements
+        const placements = await db.query('SELECT * FROM placements WHERE daycare_id = ?', [req.params.id]);
+        
+        res.json({
+            ...daycare,
+            placements: placements
+        });
     } catch (error) {
+        console.error('Get daycare error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -217,35 +179,25 @@ app.get('/api/daycares/:id', async (req, res) => {
 app.post('/api/waitlist', async (req, res) => {
     try {
         const { clientId, childName, age, location } = req.body;
-        const data = await readData();
         
         const childId = Date.now().toString();
-        const newEntry = {
-            id: childId,
-            clientId,
-            childName,
-            age: parseInt(age),
-            location,
-            dateAdded: new Date().toISOString()
-        };
+        const dateAdded = new Date().toISOString();
         
-        data.waitlist.push(newEntry);
+        // Insert child into children table
+        await db.run(
+            'INSERT INTO children (id, client_id, name, age, location) VALUES (?, ?, ?, ?, ?)',
+            [childId, clientId, childName, parseInt(age), location]
+        );
         
-        // Update client's children list
-        const client = data.clients.find(c => c.id === clientId);
-        if (client) {
-            if (!client.children) client.children = [];
-            client.children.push({
-                id: childId,
-                name: childName,
-                age: parseInt(age),
-                location
-            });
-        }
+        // Insert into waitlist
+        await db.run(
+            'INSERT INTO waitlist (id, client_id, child_id, child_name, age, location, date_added) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [childId, clientId, childId, childName, parseInt(age), location, dateAdded]
+        );
         
-        await writeData(data);
         res.json({ success: true, childId });
     } catch (error) {
+        console.error('Add to waitlist error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -253,9 +205,21 @@ app.post('/api/waitlist', async (req, res) => {
 // Get waitlist
 app.get('/api/waitlist', async (req, res) => {
     try {
-        const data = await readData();
-        res.json(data.waitlist);
+        const waitlist = await db.query('SELECT * FROM waitlist ORDER BY date_added ASC');
+        
+        // Transform to match expected format
+        const formatted = waitlist.map(entry => ({
+            id: entry.id,
+            clientId: entry.client_id,
+            childName: entry.child_name,
+            age: entry.age,
+            location: entry.location,
+            dateAdded: entry.date_added
+        }));
+        
+        res.json(formatted);
     } catch (error) {
+        console.error('Get waitlist error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -263,13 +227,11 @@ app.get('/api/waitlist', async (req, res) => {
 // Get waitlist position
 app.get('/api/waitlist/position/:childId', async (req, res) => {
     try {
-        const data = await readData();
-        const sortedWaitlist = [...data.waitlist].sort((a, b) => 
-            new Date(a.dateAdded) - new Date(b.dateAdded)
-        );
-        const position = sortedWaitlist.findIndex(w => w.id === req.params.childId) + 1;
+        const waitlist = await db.query('SELECT id FROM waitlist ORDER BY date_added ASC');
+        const position = waitlist.findIndex(w => w.id === req.params.childId) + 1;
         res.json({ position: position || null });
     } catch (error) {
+        console.error('Get position error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -280,34 +242,34 @@ app.get('/api/waitlist/position/:childId', async (req, res) => {
 app.post('/api/placements', async (req, res) => {
     try {
         const { daycareId, minAge, maxAge, count } = req.body;
-        const data = await readData();
         
-        const daycare = data.daycares.find(d => d.id === daycareId);
+        // Verify daycare exists
+        const daycare = await db.get('SELECT name, location FROM daycares WHERE id = ?', [daycareId]);
         if (!daycare) {
             return res.status(404).json({ error: 'Daycare not found' });
         }
         
         const placementId = Date.now().toString();
-        const newPlacement = {
-            id: placementId,
-            daycareId,
-            daycareName: daycare.name,
-            daycareLocation: daycare.location,
-            minAge: parseInt(minAge),
-            maxAge: parseInt(maxAge),
-            totalCount: parseInt(count),
-            availableCount: parseInt(count),
-            dateAdded: new Date().toISOString()
-        };
+        const dateAdded = new Date().toISOString();
         
-        data.placements.push(newPlacement);
+        await db.run(
+            'INSERT INTO placements (id, daycare_id, daycare_name, daycare_location, min_age, max_age, total_count, available_count, date_added) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                placementId,
+                daycareId,
+                daycare.name,
+                daycare.location,
+                parseInt(minAge),
+                parseInt(maxAge),
+                parseInt(count),
+                parseInt(count),
+                dateAdded
+            ]
+        );
         
-        if (!daycare.placements) daycare.placements = [];
-        daycare.placements.push(newPlacement);
-        
-        await writeData(data);
         res.json({ success: true, placementId });
     } catch (error) {
+        console.error('Add placement error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -315,9 +277,24 @@ app.post('/api/placements', async (req, res) => {
 // Get placements
 app.get('/api/placements', async (req, res) => {
     try {
-        const data = await readData();
-        res.json(data.placements);
+        const placements = await db.query('SELECT * FROM placements');
+        
+        // Transform to match expected format
+        const formatted = placements.map(placement => ({
+            id: placement.id,
+            daycareId: placement.daycare_id,
+            daycareName: placement.daycare_name,
+            daycareLocation: placement.daycare_location,
+            minAge: placement.min_age,
+            maxAge: placement.max_age,
+            totalCount: placement.total_count,
+            availableCount: placement.available_count,
+            dateAdded: placement.date_added
+        }));
+        
+        res.json(formatted);
     } catch (error) {
+        console.error('Get placements error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -328,25 +305,33 @@ app.get('/api/placements', async (req, res) => {
 app.post('/api/offers', async (req, res) => {
     try {
         const { childId, daycareId, placementId } = req.body;
-        const data = await readData();
         
-        const client = data.waitlist.find(w => w.id === childId);
-        const placement = data.placements.find(p => p.id === placementId);
-        const daycare = data.daycares.find(d => d.id === daycareId);
-        
-        if (!client || !placement || !daycare) {
-            return res.status(404).json({ error: 'Invalid data' });
+        // Get waitlist entry
+        const waitlistEntry = await db.get('SELECT * FROM waitlist WHERE id = ?', [childId]);
+        if (!waitlistEntry) {
+            return res.status(404).json({ error: 'Child not found in waitlist' });
         }
         
-        if (placement.availableCount === 0) {
+        // Get placement
+        const placement = await db.get('SELECT * FROM placements WHERE id = ?', [placementId]);
+        if (!placement) {
+            return res.status(404).json({ error: 'Placement not found' });
+        }
+        
+        if (placement.available_count === 0) {
             return res.status(400).json({ error: 'No available placements' });
         }
         
+        // Get daycare
+        const daycare = await db.get('SELECT name, location FROM daycares WHERE id = ?', [daycareId]);
+        if (!daycare) {
+            return res.status(404).json({ error: 'Daycare not found' });
+        }
+        
         // Check if offer already exists
-        const existingOffer = data.offers.find(o => 
-            o.childId === childId && 
-            o.daycareId === daycareId && 
-            o.status === 'pending'
+        const existingOffer = await db.get(
+            'SELECT id FROM offers WHERE child_id = ? AND daycare_id = ? AND status = ?',
+            [childId, daycareId, 'pending']
         );
         
         if (existingOffer) {
@@ -354,25 +339,28 @@ app.post('/api/offers', async (req, res) => {
         }
         
         const offerId = Date.now().toString();
-        const newOffer = {
-            id: offerId,
-            childId,
-            childName: client.childName,
-            childAge: client.age,
-            childLocation: client.location,
-            daycareId,
-            daycareName: daycare.name,
-            daycareLocation: daycare.location,
-            placementId,
-            status: 'pending',
-            dateCreated: new Date().toISOString()
-        };
+        const dateCreated = new Date().toISOString();
         
-        data.offers.push(newOffer);
-        await writeData(data);
+        await db.run(
+            'INSERT INTO offers (id, child_id, child_name, child_age, child_location, daycare_id, daycare_name, daycare_location, placement_id, status, date_created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                offerId,
+                childId,
+                waitlistEntry.child_name,
+                waitlistEntry.age,
+                waitlistEntry.location,
+                daycareId,
+                daycare.name,
+                daycare.location,
+                placementId,
+                'pending',
+                dateCreated
+            ]
+        );
         
         res.json({ success: true, offerId });
     } catch (error) {
+        console.error('Create offer error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -380,9 +368,27 @@ app.post('/api/offers', async (req, res) => {
 // Get offers
 app.get('/api/offers', async (req, res) => {
     try {
-        const data = await readData();
-        res.json(data.offers);
+        const offers = await db.query('SELECT * FROM offers');
+        
+        // Transform to match expected format
+        const formatted = offers.map(offer => ({
+            id: offer.id,
+            childId: offer.child_id,
+            childName: offer.child_name,
+            childAge: offer.child_age,
+            childLocation: offer.child_location,
+            daycareId: offer.daycare_id,
+            daycareName: offer.daycare_name,
+            daycareLocation: offer.daycare_location,
+            placementId: offer.placement_id,
+            status: offer.status,
+            dateCreated: offer.date_created,
+            dateResponded: offer.date_responded
+        }));
+        
+        res.json(formatted);
     } catch (error) {
+        console.error('Get offers error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -391,34 +397,86 @@ app.get('/api/offers', async (req, res) => {
 app.patch('/api/offers/:id', async (req, res) => {
     try {
         const { status } = req.body;
-        const data = await readData();
         
-        const offer = data.offers.find(o => o.id === req.params.id);
+        const offer = await db.get('SELECT * FROM offers WHERE id = ?', [req.params.id]);
         if (!offer) {
             return res.status(404).json({ error: 'Offer not found' });
         }
         
-        offer.status = status;
-        offer.dateResponded = new Date().toISOString();
+        const dateResponded = new Date().toISOString();
+        
+        await db.run(
+            'UPDATE offers SET status = ?, date_responded = ? WHERE id = ?',
+            [status, dateResponded, req.params.id]
+        );
         
         if (status === 'accepted') {
             // Remove from waitlist
-            const waitlistIndex = data.waitlist.findIndex(w => w.id === offer.childId);
-            if (waitlistIndex !== -1) {
-                data.waitlist.splice(waitlistIndex, 1);
-            }
+            await db.run('DELETE FROM waitlist WHERE id = ?', [offer.child_id]);
             
             // Decrease available placements
-            const placement = data.placements.find(p => p.id === offer.placementId);
-            if (placement) {
-                placement.availableCount--;
-            }
+            await db.run(
+                'UPDATE placements SET available_count = available_count - 1 WHERE id = ?',
+                [offer.placement_id]
+            );
         }
         
-        await writeData(data);
         res.json({ success: true });
     } catch (error) {
+        console.error('Update offer error:', error);
         res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ==================== ADMIN ROUTES ====================
+// (Optional: Remove or add authentication in production!)
+
+// Admin query endpoint - allows running SELECT queries via API
+app.post('/api/admin/query', async (req, res) => {
+    try {
+        const { sql } = req.body;
+        
+        if (!sql || !sql.trim()) {
+            return res.status(400).json({ error: 'SQL query is required' });
+        }
+        
+        // Only allow SELECT and PRAGMA queries for safety
+        const trimmedQuery = sql.trim().toUpperCase();
+        const isSafe = trimmedQuery.startsWith('SELECT') || 
+                      trimmedQuery.startsWith('PRAGMA') ||
+                      trimmedQuery.startsWith('EXPLAIN');
+        
+        if (!isSafe) {
+            return res.status(400).json({ 
+                error: 'Only SELECT, PRAGMA, and EXPLAIN queries are allowed via this endpoint' 
+            });
+        }
+        
+        const results = await db.query(sql);
+        res.json({ success: true, results, count: results.length });
+    } catch (error) {
+        console.error('Admin query error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get database statistics
+app.get('/api/admin/stats', async (req, res) => {
+    try {
+        const stats = await db.query(`
+            SELECT 
+                (SELECT COUNT(*) FROM clients) as total_clients,
+                (SELECT COUNT(*) FROM daycares) as total_daycares,
+                (SELECT COUNT(*) FROM waitlist) as waitlist_count,
+                (SELECT COUNT(*) FROM placements) as total_placements,
+                (SELECT COUNT(*) FROM offers WHERE status = 'pending') as pending_offers,
+                (SELECT COUNT(*) FROM offers WHERE status = 'accepted') as accepted_offers
+        `);
+        
+        res.json({ success: true, stats: stats[0] });
+    } catch (error) {
+        console.error('Stats error:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -428,7 +486,6 @@ function getLocalIP() {
     const interfaces = os.networkInterfaces();
     for (const name of Object.keys(interfaces)) {
         for (const iface of interfaces[name]) {
-            // Skip internal (loopback) and non-IPv4 addresses
             if (iface.family === 'IPv4' && !iface.internal) {
                 return iface.address;
             }
@@ -439,20 +496,42 @@ function getLocalIP() {
 
 // Start server
 async function startServer() {
-    await initDataFile();
-    const localIP = getLocalIP();
-    app.listen(PORT, HOST, () => {
-        console.log('='.repeat(60));
-        console.log(`Server is running!`);
-        console.log('='.repeat(60));
-        console.log(`Local access:    http://localhost:${PORT}`);
-        console.log(`Network access:  http://${localIP}:${PORT}`);
-        console.log(`API endpoint:    http://${localIP}:${PORT}/api`);
-        console.log('='.repeat(60));
-        console.log(`\nTo access from other devices on your network:`);
-        console.log(`Use: http://${localIP}:${PORT}`);
-        console.log(`\nMake sure your firewall allows connections on port ${PORT}`);
-    });
+    try {
+        // Initialize database
+        await initDatabase();
+        console.log('Database ready');
+        
+        const localIP = getLocalIP();
+        app.listen(PORT, HOST, () => {
+            console.log('='.repeat(60));
+            console.log(`Server is running!`);
+            console.log('='.repeat(60));
+            console.log(`Local access:    http://localhost:${PORT}`);
+            console.log(`Network access:  http://${localIP}:${PORT}`);
+            console.log(`API endpoint:    http://${localIP}:${PORT}/api`);
+            console.log('='.repeat(60));
+            console.log(`\nTo access from other devices on your network:`);
+            console.log(`Use: http://${localIP}:${PORT}`);
+            console.log(`\nMake sure your firewall allows connections on port ${PORT}`);
+            console.log('\nDatabase: SQLite (daycare.db)');
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
 }
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+    console.log('\nShutting down gracefully...');
+    await db.close();
+    process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+    console.log('\nShutting down gracefully...');
+    await db.close();
+    process.exit(0);
+});
 
 startServer();
